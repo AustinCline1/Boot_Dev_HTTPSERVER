@@ -7,7 +7,7 @@ import postgres from 'postgres';
 import {migrate} from "drizzle-orm/postgres-js/migrator";
 import {drizzle} from "drizzle-orm/postgres-js";
 import {handlerCreateUser} from "./api/users.js";
-import {handlerCreateChirps} from "./api/chirps.js";
+import {handlerCreateChirps, handlerGetAllChirps, handlerGetChirp} from "./api/chirps.js";
 
 
 
@@ -27,6 +27,14 @@ app.get("/api/healthz", (req,res,next)=> {
 app.get("/admin/metrics",(req,res,next)=>{
     Promise.resolve(handlerMetrics(req,res)).catch(next);
 });
+
+app.get("/api/chirps",(req,res,next)=>{
+    Promise.resolve(handlerGetAllChirps(req,res)).catch(next);
+});
+
+app.get("/api/chirps/:chirpID",(req,res,next)=>{
+    Promise.resolve(handlerGetChirp(req,res)).catch(next);
+})
 app.post("/admin/reset",(req,res,next)=>{
     Promise.resolve(handlerReset(req,res)).catch(next);
 });
