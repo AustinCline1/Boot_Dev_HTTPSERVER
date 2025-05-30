@@ -14,12 +14,14 @@
   },
   "private": true,
   "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
     "@types/express": "^5.0.2",
     "@types/node": "^22.15.24",
     "drizzle-kit": "^0.31.1",
     "typescript": "^5.8.3"
   },
   "dependencies": {
+    "bcrypt": "^6.0.0",
     "drizzle-orm": "^0.44.0",
     "express": "^5.1.0",
     "postgres": "^3.4.7"

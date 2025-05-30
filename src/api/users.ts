@@ -1,22 +1,33 @@
 import {Request, Response} from "express";
-import {createUser} from "../db/queries/users.js";
+import {createUser, getUserPassword} from "../db/queries/users.js";
 import {respondWithJSON} from "./json.js";
-import {BadRequestError} from "./errors.js";
+import {BadRequestError, UserNotAuthenticatedError} from "./errors.js";
+import {checkPasswordHash, hashPassword} from "../db/auth.js";
+import {NewUser} from "../db/schema.js";
+export type UserResponse = Omit<NewUser, "password">;
 
 export async function handlerCreateUser(req: Request, res: Response) {
-    type paramaters = {
+    type parameters = {
+        password: string;
         email: string;
     }
-    const params: paramaters = req.body;
+    const params: parameters = req.body;
     const email = params.email;
-
-    if(!email) {
-        throw new BadRequestError("Missing required parameter: email");
+    const password = params.password;
+    if(!email || !password) {
+        throw new BadRequestError("Missing required parameters, Need email and password");
     }
-
-    const user = await createUser({email});
-    if (user) respondWithJSON(res, 201 , user);
+    const hashedPassword = await hashPassword(password);
+    if(!hashedPassword) {
+        throw new Error("Failed to hash password");
+    }
+    const user = await createUser({email: email, password: hashedPassword});
+    const userResponse: UserResponse = {
+        id: user.id,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+        email: user.email,
+    }
+    if (user) respondWithJSON(res, 201 , userResponse);
     else respondWithJSON(res, 400, {error: "User already exists"});
-
-
 }
