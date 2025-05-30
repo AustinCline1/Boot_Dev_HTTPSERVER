@@ -1,15 +1,17 @@
 import {Request, Response} from "express";
-import {BadRequestError, NotFoundError} from "./errors.js";
+import {BadRequestError, NotFoundError, UserForbiddenError} from "./errors.js";
 import {createChirp, getAllChirps, getChirp} from "../db/queries/chirps.js";
 import {respondWithJSON} from "./json.js";
+import {getBearerToken, verifyJWT} from "../auth.js";
+import {config} from "../config.js";
 
 export async function handlerCreateChirps(req: Request, res: Response) {
-    type paramaters = {
+    type parameters = {
         body: string;
-        userId: string;
     };
-    const params: paramaters = req.body;
-    const userId = params.userId;
+    const params: parameters = req.body;
+    const token =  getBearerToken(req);
+    const userId = verifyJWT(token, config.api.secret);
     if(!params.body || !userId) {
         throw new BadRequestError("Missing required parameters");
     }

@@ -1,8 +1,8 @@
 import {Request, Response} from "express";
-import {createUser, getUserPassword} from "../db/queries/users.js";
+import {createUser} from "../db/queries/users.js";
 import {respondWithJSON} from "./json.js";
-import {BadRequestError, UserNotAuthenticatedError} from "./errors.js";
-import {checkPasswordHash, hashPassword} from "../db/auth.js";
+import {BadRequestError} from "./errors.js";
+import { hashPassword} from "../auth.js";
 import {NewUser} from "../db/schema.js";
 export type UserResponse = Omit<NewUser, "password">;
 
