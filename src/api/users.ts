@@ -22,13 +22,10 @@ export async function handlerCreateUser(req: Request, res: Response) {
         throw new Error("Failed to hash password");
     }
     const user = await createUser({email: email, password: hashedPassword});
-    const userResponse: UserResponse = {
-        id: user.id,
+    if (user) respondWithJSON(res, 201 , {id: user.id,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
         email: user.email,
-        isChirpyRed: user.isChirpyRed,
-    }
-    if (user) respondWithJSON(res, 201 , userResponse);
+        isChirpyRed: user.isChirpyRed}satisfies UserResponse);
     else respondWithJSON(res, 400, {error: "User already exists"});
 }

@@ -5,7 +5,7 @@ import {
     getUserPassword,
     revokeRefreshToken,
     setRefreshToken,
-    updateUser, upgradeUser
+    updateUser
 } from "../db/queries/users.js";
 import {checkPasswordHash, getBearerToken, hashPassword, makeJWT, makeRefreshToken, verifyJWT} from "../auth.js";
 import {respondWithError, respondWithJSON} from "./json.js";
@@ -17,6 +17,10 @@ export async function handlerLogin(req: Request, res: Response) {
     type parameters = {
         password: string;
         email: string;
+    }
+    type LoginUser = UserResponse & {
+        token: string;
+        refreshToken: string;
     }
     const params: parameters = req.body;
     const email = params.email;
@@ -36,13 +40,14 @@ export async function handlerLogin(req: Request, res: Response) {
     const jwt = makeJWT(user.id,config.jwt.refreshDuration,config.jwt.secret);
     const refreshToken = makeRefreshToken();
     await setRefreshToken(user.id, refreshToken);
-    const userResponse: UserResponse = {
-        id: user.id,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-        email: user.email,
-    }
-    respondWithJSON(res, 200, {userResponse, token: jwt, refreshToken: refreshToken, isChirpyRed: user.isChirpyRed});
+    respondWithJSON(res, 200,
+        {   token: jwt,
+            refreshToken: refreshToken,
+            id: user.id,
+            createdAt: user.createdAt,
+            updatedAt: user.updatedAt,
+            email: user.email,
+            isChirpyRed: user.isChirpyRed} satisfies LoginUser);
 }
 
 export async function handlerUpdateUser(req: Request, res: Response) {
@@ -84,37 +89,6 @@ export async function handlerUpdateUser(req: Request, res: Response) {
 
 }
 
-export async function handlerUpgradeUser(req: Request, res: Response) {
-    type parameters = {
-        event: string,
-        data: {
-            userId: string;
-        }
-    }
-    const params: parameters = req.body;
-    if(params.event !== "user.upgraded") {
-        res.status(204).send();
-        return;
-    }
-    if(!params.data) {
-        respondWithError(res, 400, "Missing required parameters, Need userId");
-        return;
-    }
-    const userId = params.data.userId;
-    try{
-        const success =  await upgradeUser(userId);
-        if(success.isChirpyRed === true){
-            res.sendStatus(204);
-            return;
-       }else {
-           res.sendStatus(404);
-            return;
-       }
-    }catch (e) {
-        console.log(`Failed try catch`);
-        throw new NotFoundError("User not found");
-    }
-}
 
 export async function handlerRefresh(req: Request, res: Response) {
     const token = getBearerToken(req);
@@ -147,4 +121,19 @@ export async function handlerRevoke(req: Request, res: Response) {
     await revokeRefreshToken(token);
     res.sendStatus(204);
 
+}
+
+export function getAPIKey(req: Request) {
+    const apiKey = req.get("Authorization") as string;
+    if(!apiKey){
+        throw new UserNotAuthenticatedError("Missing API Key");
+    }
+    if(apiKey.split(" ").length !== 2) {
+        throw new Error("Invalid API Key");
+    }
+    const [type, key] = apiKey.split(" ");
+    if(type !== "ApiKey") {
+        throw new Error("Invalid API Key");
+    }
+    return key;
 }
