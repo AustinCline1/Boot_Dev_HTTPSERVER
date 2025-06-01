@@ -5,13 +5,18 @@ process.loadEnvFile();
 type Config = {
     api: APIConfig;
     db: DBConfig;
+    jwt: jwt;
 }
 
+type jwt = {
+    defaultDuration: number;
+    refreshDuration: number;
+    secret: string;
+}
 type APIConfig = {
     fileserverHits: number;
     port: number;
     platform: string;
-    secret: string;
 }
 
 type DBConfig = {
@@ -36,11 +41,15 @@ export const config:Config = {
       fileserverHits: 0,
       port: Number(envORThrow("PORT")),
         platform: envORThrow("PLATFORM"),
-        secret: envORThrow("SECRET"),
     },
     db: {
         url: envORThrow("DB_URL"),
         migrationConfig: migrationConfig
+    },
+    jwt: {
+        defaultDuration: 60* 60,
+        refreshDuration: 60*60*24*60*1000,
+        secret: envORThrow("SECRET"),
     }
 
 };

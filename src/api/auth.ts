@@ -1,7 +1,13 @@
 import {Request, Response} from "express";
 import {BadRequestError, UserNotAuthenticatedError} from "./errors.js";
-import {getUserFromRefreshToken, getUserPassword, revokeRefreshToken, setRefreshToken} from "../db/queries/users.js";
-import {checkPasswordHash, getBearerToken, makeJWT, makeRefreshToken} from "../auth.js";
+import {
+    getUserFromRefreshToken,
+    getUserPassword,
+    revokeRefreshToken,
+    setRefreshToken,
+    updateUser
+} from "../db/queries/users.js";
+import {checkPasswordHash, getBearerToken, hashPassword, makeJWT, makeRefreshToken, verifyJWT} from "../auth.js";
 import {respondWithError, respondWithJSON} from "./json.js";
 import {UserResponse} from "./users.js";
 import {config} from "../config.js";
@@ -15,7 +21,6 @@ export async function handlerLogin(req: Request, res: Response) {
     const params: parameters = req.body;
     const email = params.email;
     const password = params.password;
-    const expires = 3600;
     if(!email || !password) {
         throw new BadRequestError("Missing required parameters, Need email and password");
     }
@@ -28,7 +33,7 @@ export async function handlerLogin(req: Request, res: Response) {
     if(!passwordMatch) {
         throw new UserNotAuthenticatedError("Email or password is incorrect");
     }
-    const jwt = makeJWT(user.id,expires,config.api.secret);
+    const jwt = makeJWT(user.id,config.jwt.refreshDuration,config.jwt.secret);
     const refreshToken = makeRefreshToken();
     await setRefreshToken(user.id, refreshToken);
     const userResponse: UserResponse = {
@@ -39,6 +44,44 @@ export async function handlerLogin(req: Request, res: Response) {
 
     }
     respondWithJSON(res, 200, {userResponse, token: jwt, refreshToken: refreshToken});
+}
+
+export async function handlerUpdateUser(req: Request, res: Response) {
+    type parameters = {
+        email: string;
+        password: string;
+    }
+    const token = getBearerToken(req);
+    if(!token) {
+        respondWithError(res, 401, "Invalid token");
+    }
+    const user = verifyJWT(token, config.jwt.secret);
+    const parameters:parameters = req.body;
+    const email = parameters.email;
+    const password = parameters.password;
+    if(!email || !password) {
+        respondWithError(res, 400, "Missing required parameters, Need email and password");
+    }
+    if(!user) {
+        throw new UserNotAuthenticatedError("Invalid token");
+    }
+    const hashedPassword = await hashPassword(password);
+    if(!hashedPassword) {
+        throw new Error("Failed to hash password");
+    }
+    const updatedUser = await updateUser(email,password,user);
+    const userResponse: UserResponse = {
+        id: updatedUser.id,
+        createdAt: updatedUser.createdAt,
+        updatedAt: updatedUser.updatedAt,
+        email: updatedUser.email,
+    }
+    if(updatedUser) {
+        respondWithJSON(res, 200, userResponse);
+    }else {
+        respondWithError(res, 401, "Failed to update user");
+    }
+
 }
 
 export async function handlerRefresh(req: Request, res: Response) {
@@ -53,7 +96,7 @@ export async function handlerRefresh(req: Request, res: Response) {
     if(user.revokedAt){
         throw new UserNotAuthenticatedError("Invalid token");
     }
-    const jwt = makeJWT(user.userId, 3600, config.api.secret);
+    const jwt = makeJWT(user.userId, config.jwt.refreshDuration, config.jwt.secret);
     if(jwt) {
         respondWithJSON(res, 200, {token: jwt});
         return;

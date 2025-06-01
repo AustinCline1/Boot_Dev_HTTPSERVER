@@ -7,8 +7,8 @@ import postgres from 'postgres';
 import {migrate} from "drizzle-orm/postgres-js/migrator";
 import {drizzle} from "drizzle-orm/postgres-js";
 import {handlerCreateUser} from "./api/users.js";
-import {handlerCreateChirps, handlerGetAllChirps, handlerGetChirp} from "./api/chirps.js";
-import {handlerLogin, handlerRefresh, handlerRevoke} from "./api/auth.js";
+import {handlerCreateChirps, handlerDeleteChirp, handlerGetAllChirps, handlerGetChirp} from "./api/chirps.js";
+import {handlerLogin, handlerRefresh, handlerRevoke, handlerUpdateUser} from "./api/auth.js";
 
 
 const migrationClient = postgres(config.db.url, {max:1});
@@ -54,6 +54,14 @@ app.post("/api/refresh", (req,res,next)=> {
 })
 app.post("/api/revoke", (req,res,next)=> {
     Promise.resolve(handlerRevoke(req,res)).catch(next);
+})
+
+app.put("/api/users", (req,res,next)=> {
+    Promise.resolve(handlerUpdateUser(req,res)).catch(next);
+})
+
+app.delete("/api/chirps/:chirpID", (req,res,next)=> {
+    Promise.resolve(handlerDeleteChirp(req,res)).catch(next);
 })
 app.use(middlewareError);
 

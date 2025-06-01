@@ -1,6 +1,6 @@
 import {Request, Response} from "express";
 import {BadRequestError, NotFoundError, UserForbiddenError} from "./errors.js";
-import {createChirp, getAllChirps, getChirp} from "../db/queries/chirps.js";
+import {createChirp, deleteChirp, getAllChirps, getChirp} from "../db/queries/chirps.js";
 import {respondWithJSON} from "./json.js";
 import {getBearerToken, verifyJWT} from "../auth.js";
 import {config} from "../config.js";
@@ -11,7 +11,7 @@ export async function handlerCreateChirps(req: Request, res: Response) {
     };
     const params: parameters = req.body;
     const token =  getBearerToken(req);
-    const userId = verifyJWT(token, config.api.secret);
+    const userId = verifyJWT(token, config.jwt.secret);
     if(!params.body || !userId) {
         throw new BadRequestError("Missing required parameters");
     }
@@ -57,4 +57,28 @@ export async function handlerGetChirp(req: Request, res: Response) {
     }
     respondWithJSON(res, 200, chirp);
 
+}
+
+
+export async function handlerDeleteChirp(req: Request, res: Response) {
+    const chirp = await getChirp(req.params.chirpID);
+    if(!chirp) {
+        console.log("FAILED TO GET CHIRP");
+        throw new NotFoundError("Failed to get chirp");
+    }
+    const token =  getBearerToken(req);
+    if(!token) {
+        throw new UserForbiddenError("Forbidden");
+    }
+    const userId = verifyJWT(token, config.jwt.secret);
+    console.log(`USER ID ${userId}`);
+    console.log(`CHIRP USER ID ${chirp.userId}`);
+    if(userId !== chirp.userId) {
+        throw new UserForbiddenError("Forbidden");
+    }
+        const success = await deleteChirp(chirp.id);
+        if (success) {
+            res.status(204).send();
+            res.end();
+        }
 }
