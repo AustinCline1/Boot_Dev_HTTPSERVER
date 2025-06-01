@@ -27,6 +27,7 @@ export async function handlerCreateUser(req: Request, res: Response) {
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
         email: user.email,
+        isChirpyRed: user.isChirpyRed,
     }
     if (user) respondWithJSON(res, 201 , userResponse);
     else respondWithJSON(res, 400, {error: "User already exists"});

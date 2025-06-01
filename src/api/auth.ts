@@ -1,11 +1,11 @@
 import {Request, Response} from "express";
-import {BadRequestError, UserNotAuthenticatedError} from "./errors.js";
+import {BadRequestError, NotFoundError, UserNotAuthenticatedError} from "./errors.js";
 import {
     getUserFromRefreshToken,
     getUserPassword,
     revokeRefreshToken,
     setRefreshToken,
-    updateUser
+    updateUser, upgradeUser
 } from "../db/queries/users.js";
 import {checkPasswordHash, getBearerToken, hashPassword, makeJWT, makeRefreshToken, verifyJWT} from "../auth.js";
 import {respondWithError, respondWithJSON} from "./json.js";
@@ -41,9 +41,8 @@ export async function handlerLogin(req: Request, res: Response) {
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
         email: user.email,
-
     }
-    respondWithJSON(res, 200, {userResponse, token: jwt, refreshToken: refreshToken});
+    respondWithJSON(res, 200, {userResponse, token: jwt, refreshToken: refreshToken, isChirpyRed: user.isChirpyRed});
 }
 
 export async function handlerUpdateUser(req: Request, res: Response) {
@@ -75,6 +74,7 @@ export async function handlerUpdateUser(req: Request, res: Response) {
         createdAt: updatedUser.createdAt,
         updatedAt: updatedUser.updatedAt,
         email: updatedUser.email,
+        isChirpyRed: updatedUser.isChirpyRed,
     }
     if(updatedUser) {
         respondWithJSON(res, 200, userResponse);
@@ -82,6 +82,38 @@ export async function handlerUpdateUser(req: Request, res: Response) {
         respondWithError(res, 401, "Failed to update user");
     }
 
+}
+
+export async function handlerUpgradeUser(req: Request, res: Response) {
+    type parameters = {
+        event: string,
+        data: {
+            userId: string;
+        }
+    }
+    const params: parameters = req.body;
+    if(params.event !== "user.upgraded") {
+        res.status(204).send();
+        return;
+    }
+    if(!params.data) {
+        respondWithError(res, 400, "Missing required parameters, Need userId");
+        return;
+    }
+    const userId = params.data.userId;
+    try{
+        const success =  await upgradeUser(userId);
+        if(success.isChirpyRed === true){
+            res.sendStatus(204);
+            return;
+       }else {
+           res.sendStatus(404);
+            return;
+       }
+    }catch (e) {
+        console.log(`Failed try catch`);
+        throw new NotFoundError("User not found");
+    }
 }
 
 export async function handlerRefresh(req: Request, res: Response) {

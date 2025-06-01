@@ -79,6 +79,5 @@ export async function handlerDeleteChirp(req: Request, res: Response) {
         const success = await deleteChirp(chirp.id);
         if (success) {
             res.status(204).send();
-            res.end();
         }
 }

@@ -9,6 +9,11 @@ export async function createUser(user: NewUser) {
     return result;
 }
 
+export async function updateUser(email: string, password:string, userId: string) {
+    const [result] = await db.update(users).set({email: email, password: password,updatedAt: new Date(Date.now())}).where(eq(users.id, userId)).returning();
+    return result;
+}
+
 export async function deleteUser() {
         await db.delete(users);
 }
@@ -18,6 +23,11 @@ export async function getUserPassword(email: string) {
     return result;
 }
 
+export async function upgradeUser(userId: string) {
+    const [result]= await db.update(users).set({isChirpyRed: true}).where(eq(users.id, userId)).returning();
+    return result;
+
+}
 export async function setRefreshToken(userId: string, refreshToken: string) {
     const expirationDate = new Date(Date.now() + config.jwt.refreshDuration);
     const result = await db.insert(refreshTokens).values({token: refreshToken, userId: userId, expiresAt:expirationDate,revokedAt:null}).returning()
@@ -33,7 +43,4 @@ export async function revokeRefreshToken(refreshToken: string) {
     await db.update(refreshTokens).set({revokedAt: new Date(), updatedAt: new Date()}).where(eq(refreshTokens.token, refreshToken));
 }
 
-export async function updateUser(email: string, password:string, userId: string) {
-    const [result] = await db.update(users).set({email: email, password: password,updatedAt: new Date(Date.now())}).where(eq(users.id, userId)).returning();
-    return result;
-}
+
