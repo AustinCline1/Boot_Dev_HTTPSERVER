@@ -1,8 +1,8 @@
 import {Request, Response} from "express";
 import {BadRequestError, UserNotAuthenticatedError} from "./errors.js";
-import {getUserPassword} from "../db/queries/users.js";
-import {checkPasswordHash, makeJWT} from "../auth.js";
-import {respondWithJSON} from "./json.js";
+import {getUserFromRefreshToken, getUserPassword, revokeRefreshToken, setRefreshToken} from "../db/queries/users.js";
+import {checkPasswordHash, getBearerToken, makeJWT, makeRefreshToken} from "../auth.js";
+import {respondWithError, respondWithJSON} from "./json.js";
 import {UserResponse} from "./users.js";
 import {config} from "../config.js";
 
@@ -11,12 +11,11 @@ export async function handlerLogin(req: Request, res: Response) {
     type parameters = {
         password: string;
         email: string;
-        expiresInSeconds?: number;
     }
     const params: parameters = req.body;
     const email = params.email;
     const password = params.password;
-    const expires = params.expiresInSeconds? Math.min(params.expiresInSeconds, 3600) : 3600;
+    const expires = 3600;
     if(!email || !password) {
         throw new BadRequestError("Missing required parameters, Need email and password");
     }
@@ -30,6 +29,8 @@ export async function handlerLogin(req: Request, res: Response) {
         throw new UserNotAuthenticatedError("Email or password is incorrect");
     }
     const jwt = makeJWT(user.id,expires,config.api.secret);
+    const refreshToken = makeRefreshToken();
+    await setRefreshToken(user.id, refreshToken);
     const userResponse: UserResponse = {
         id: user.id,
         createdAt: user.createdAt,
@@ -37,5 +38,38 @@ export async function handlerLogin(req: Request, res: Response) {
         email: user.email,
 
     }
-    respondWithJSON(res, 200, {userResponse, token: jwt});
+    respondWithJSON(res, 200, {userResponse, token: jwt, refreshToken: refreshToken});
+}
+
+export async function handlerRefresh(req: Request, res: Response) {
+    const token = getBearerToken(req);
+    if(!token) {
+        respondWithError(res, 401, "Invalid token");
+    }
+    const user = await getUserFromRefreshToken(token);
+    if(!user) {
+        throw new UserNotAuthenticatedError("Invalid token");
+    }
+    if(user.revokedAt){
+        throw new UserNotAuthenticatedError("Invalid token");
+    }
+    const jwt = makeJWT(user.userId, 3600, config.api.secret);
+    if(jwt) {
+        respondWithJSON(res, 200, {token: jwt});
+        return;
+    }
+        respondWithError(res, 401, "Invalid token");
+        return;
+
+}
+
+export async function handlerRevoke(req: Request, res: Response) {
+    const token = getBearerToken(req);
+    if(!token) {
+        respondWithError(res, 401, "Invalid Token");
+    }
+    console.log(`Revoking token ${token}`);
+    await revokeRefreshToken(token);
+    res.sendStatus(204);
+
 }
