@@ -26,18 +26,13 @@ export async function handlerUpgradeUser(req: Request, res: Response) {
         return;
     }
     const userId = params.data.userId;
-    try{
-        const success =  await upgradeUser(userId);
-        if(success.isChirpyRed === true){
-            res.sendStatus(204);
-            return;
-        }else {
-            res.sendStatus(404);
-            return;
-        }
-    }catch (e) {
-        console.log(`Failed try catch`);
-        throw new NotFoundError("User not found");
+    const success =  await upgradeUser(userId);
+    if(success.isChirpyRed === true){
+        res.sendStatus(204);
+        return;
+    }else {
+        res.sendStatus(404);
+        return;
     }
 }
 

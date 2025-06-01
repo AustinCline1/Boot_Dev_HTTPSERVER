@@ -39,7 +39,12 @@ export function verifyJWT(tokenString: string, secret: string): string {
     try {
         token = jwt.verify(tokenString, secret) as JwtPayload;
     }catch (e) {
-        throw new UserNotAuthenticatedError("Invalid token");
+        if(e instanceof jwt.TokenExpiredError) {
+            throw new UserNotAuthenticatedError("Token has expired");
+        }else if (e instanceof jwt.JsonWebTokenError) {
+            throw new UserNotAuthenticatedError("Invalid token")
+        }
+        throw new UserNotAuthenticatedError("Token verification failed");
     }
     if(token.iss != TOKEN_ISSUER) {
         throw new UserNotAuthenticatedError("Invalid token");
